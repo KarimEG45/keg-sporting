@@ -63,6 +63,23 @@ export function playRestFinishedBeep() {
   } catch {}
 }
 
+export function playMetronomeTick() {
+  try {
+    const ctx = getAudioContext();
+    if (!ctx) return;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(1100, ctx.currentTime);
+    gain.gain.setValueAtTime(0.06, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.035);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.035);
+  } catch {}
+}
+
 export function speakCoachFr(text, enabled = true) {
   playRestFinishedBeep();
   if (!enabled || typeof window === 'undefined' || !('speechSynthesis' in window)) return;

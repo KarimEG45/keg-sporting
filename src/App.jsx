@@ -47,6 +47,7 @@ import {
   playRestFinishedBeep,
   speakCoachFr
 } from './utils/sound.js';
+import RunningView from './components/RunningView.jsx';
 
 function normalizeText(str) {
   return (str || '')
@@ -1601,319 +1602,29 @@ export default function App() {
   };
 
   // ══════════════════════════════════════════════════════════════════
-  // ONGLET 3 : MODE COURSE À PIED (RUNNING DÉBUTANT & COACH AUDIO)
+  // ONGLET 3 : MODE COURSE À PIED PRO (CARTE GPS, JAUGE SVG, TÉLÉMÉTRIE, ZONES FC)
   // ══════════════════════════════════════════════════════════════════
-  const renderRunningTab = () => {
-    const selectedProgram =
-      RUNNING_PROGRAMS.find((p) => p.id === selectedRunProgramId) || RUNNING_PROGRAMS[0];
-
-    const currentInterval = activeRun
-      ? activeRun.intervals[activeRun.currentIdx]
-      : null;
-
-    const phaseColors = {
-      warmup: { bg: 'rgba(16, 185, 129, 0.16)', border: '#10b981', text: '#34d399', badge: '🟢 ÉCHAUFFEMENT' },
-      run: { bg: 'rgba(255, 85, 0, 0.18)', border: '#ff5500', text: '#ff7733', badge: '🔥 PHASE DE COURSE' },
-      walk: { bg: 'rgba(59, 130, 246, 0.16)', border: '#3b82f6', text: '#60a5fa', badge: '🔵 MARCHE RÉCUPÉRATION' },
-      cooldown: { bg: 'rgba(139, 92, 246, 0.16)', border: '#8b5cf6', text: '#a78bfa', badge: '🟣 RETOUR AU CALME' }
-    };
-    const pStyle = phaseColors[currentInterval?.type || 'run'];
-
-    // Calculateur d'allure
-    const speedKmhFromPace = (60 / paceMinPerKm).toFixed(1);
-    const time5kMin = Math.round(paceMinPerKm * 5);
-    const time10kMin = Math.round(paceMinPerKm * 10);
-
-    const leftRunningPane = (
-      <div className="page-pad">
-        {activeRun ? (
-          /* Cadran Coach Course en direct */
-          <>
-            <div
-              className="run-dial-card"
-              style={{ borderColor: pStyle.border, background: pStyle.bg }}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
-                <span
-                  className="run-phase-badge"
-                  style={{ background: pStyle.border, color: '#fff' }}
-                >
-                  {pStyle.badge}
-                </span>
-                <div style={{ display: 'flex', gap: 6 }}>
-                  <button
-                    className={`icon-btn ${voiceCoachEnabled ? 'active' : ''}`}
-                    onClick={() => setVoiceCoachEnabled((v) => !v)}
-                    title="Annonces vocales en français"
-                  >
-                    {voiceCoachEnabled ? <Volume2 size={16} /> : <VolumeX size={16} />}
-                  </button>
-                  <button
-                    className={`icon-btn ${gpsActive ? 'active' : ''}`}
-                    onClick={() => setGpsActive((g) => !g)}
-                    title="Activer le suivi GPS réel"
-                  >
-                    <Navigation size={16} />
-                  </button>
-                </div>
-              </div>
-
-              <div style={{ fontSize: 15, fontWeight: 800, marginTop: 4 }}>
-                {currentInterval?.label}
-              </div>
-
-              <div className="run-big-timer">{formatTimeMMSS(activeRun.remainingSec)}</div>
-
-              <p style={{ fontSize: 13, color: 'var(--text-primary)', maxWidth: 420 }}>
-                💡 {currentInterval?.tip}
-              </p>
-
-              {/* Métriques Temps réel */}
-              <div className="kpi-grid" style={{ width: '100%', marginTop: 8 }}>
-                <div className="kpi-card">
-                  <span className="kpi-val">{formatTimeMMSS(activeRun.elapsedSec)}</span>
-                  <span className="kpi-lbl">Temps total</span>
-                </div>
-                <div className="kpi-card">
-                  <span className="kpi-val">{activeRun.distanceKm.toFixed(2)} km</span>
-                  <span className="kpi-lbl">
-                    {gpsActive ? '📍 Distance GPS' : 'Distance estimée'}
-                  </span>
-                </div>
-                <div className="kpi-card">
-                  <span className="kpi-val">
-                    {activeRun.currentIdx + 1}/{activeRun.intervals.length}
-                  </span>
-                  <span className="kpi-lbl">Étape actuelle</span>
-                </div>
-                <div className="kpi-card">
-                  <span className="kpi-val">
-                    {Math.round(activeRun.distanceKm * 68 || (activeRun.elapsedSec / 60) * 8.5)}
-                  </span>
-                  <span className="kpi-lbl">🔥 kcal brûlées</span>
-                </div>
-              </div>
-
-              {/* Boutons de contrôle de la course */}
-              <div style={{ display: 'flex', gap: 8, width: '100%', marginTop: 8, flexWrap: 'wrap' }}>
-                <button
-                  className="btn-primary"
-                  style={{ flex: 1 }}
-                  onClick={() =>
-                    setActiveRun((prev) => ({ ...prev, paused: !prev.paused }))
-                  }
-                >
-                  {activeRun.paused ? <Play size={16} /> : <Pause size={16} />}
-                  {activeRun.paused ? 'Reprendre' : 'Pause'}
-                </button>
-
-                <button
-                  className="btn-secondary"
-                  onClick={skipRunInterval}
-                  title="Passer à l'étape suivante"
-                >
-                  <SkipForward size={16} /> Étape suiv.
-                </button>
-
-                <button className="btn-success" onClick={finishRunningSession}>
-                  <CheckCircle2 size={16} /> Terminer
-                </button>
-              </div>
-            </div>
-
-            {/* Étapes de la séance en cours */}
-            <div className="section-card">
-              <div className="section-title">Étapes de ta séance ({activeRun.title})</div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                {activeRun.intervals.map((intv, i) => (
-                  <div
-                    key={i}
-                    className={`interval-row ${
-                      i === activeRun.currentIdx
-                        ? 'active'
-                        : i < activeRun.currentIdx
-                        ? 'completed'
-                        : ''
-                    }`}
-                  >
-                    <span>
-                      {i + 1}. {intv.label}
-                    </span>
-                    <span>{formatTimeMMSS(intv.durationSec)}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </>
-        ) : (
-          /* Sélection d'une séance Course à Pied Débutant */
-          <>
-            <div className="hero-banner">
-              <span className="ex-badge primary" style={{ alignSelf: 'flex-start' }}>
-                🏃‍♂️ COACH COURSE À PIED DÉBUTANT
-              </span>
-              <h1 style={{ fontSize: 20, fontWeight: 900 }}>
-                Progresser en course à pied sans s’essouffler
-              </h1>
-              <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
-                Séances guidées par voix en français basées sur l’alternance Course / Marche pour habituer ton cœur et tes articulations jusqu’à courir 30 minutes sans t’arrêter.
-              </p>
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                <button
-                  className="btn-primary"
-                  onClick={() => startRunningSession(selectedProgram)}
-                >
-                  <Play size={15} /> Lancer l’étape sélectionnée
-                </button>
-                <button className="btn-secondary" onClick={startFreeRun}>
-                  Course Libre (Chrono + GPS)
-                </button>
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {RUNNING_PROGRAMS.map((rp) => {
-                const isSel = rp.id === selectedRunProgramId;
-                return (
-                  <div
-                    key={rp.id}
-                    className={`workout-card ${isSel ? 'selected' : ''}`}
-                    onClick={() => setSelectedRunProgramId(rp.id)}
-                    style={{ cursor: 'pointer' }}
-                  >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
-                      <div>
-                        <span
-                          className="ex-badge"
-                          style={{ background: `${rp.color}22`, color: rp.color }}
-                        >
-                          {rp.badge}
-                        </span>
-                        <h3 style={{ fontSize: 15.5, fontWeight: 800, marginTop: 4 }}>
-                          {rp.icon} {rp.title}
-                        </h3>
-                        <p style={{ fontSize: 12.5, color: 'var(--text-secondary)', marginTop: 2 }}>
-                          {rp.goal}
-                        </p>
-                        <div style={{ fontSize: 12, fontWeight: 700, marginTop: 6, color: 'var(--text-primary)' }}>
-                          ⏱️ {rp.totalMin} min — {rp.summary}
-                        </div>
-                      </div>
-                      <button
-                        className="btn-primary"
-                        style={{ flexShrink: 0, padding: '8px 12px', fontSize: 12 }}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          startRunningSession(rp);
-                        }}
-                      >
-                        <Play size={14} /> Go
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </>
-        )}
-
-        {/* Sur mobile 1 écran, on affiche aussi les conseils débutant et le calculateur d'allure en bas */}
-        {!isSplitView && renderRunningCoachDetails(selectedProgram, speedKmhFromPace, time5kMin, time10kMin)}
-      </div>
-    );
-
-    if (!isSplitView) return <div className="primary-pane">{leftRunningPane}</div>;
-
-    return (
-      <>
-        <div className="primary-pane">{leftRunningPane}</div>
-        <aside className="secondary-pane">
-          <div className="page-pad">
-            {renderRunningCoachDetails(selectedProgram, speedKmhFromPace, time5kMin, time10kMin)}
-          </div>
-        </aside>
-      </>
-    );
-  };
-
-  const renderRunningCoachDetails = (program, speedKmhFromPace, time5kMin, time10kMin) => (
-    <>
-      {/* Détail des intervalles du programme sélectionné */}
-      <div className="section-card">
-        <div className="section-title">
-          <Timer size={14} color="var(--accent)" />
-          Détail des blocs : {program.title}
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 260, overflowY: 'auto' }}>
-          {program.intervals.map((intv, idx) => (
-            <div key={idx} className="interval-row">
-              <span>
-                {idx + 1}. {intv.label}
-              </span>
-              <span style={{ fontWeight: 700 }}>{formatTimeMMSS(intv.durationSec)}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Les 4 règles d'or du débutant */}
-      <div className="section-card">
-        <div className="section-title">
-          <Sparkles size={14} color="var(--success)" />
-          Conseils Coach pour Débutants
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {BEGINNER_RUNNING_TIPS.map((tip, idx) => (
-            <div key={idx} className="meta-box">
-              <strong style={{ fontSize: 13 }}>
-                {tip.icon} {tip.title}
-              </strong>
-              <p style={{ fontSize: 12.5, color: 'var(--text-secondary)', marginTop: 3 }}>
-                {tip.text}
-              </p>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Calculateur d'Allure Course à Pied */}
-      <div className="section-card">
-        <div className="section-title">
-          <Calculator size={14} color="var(--accent)" />
-          Calculateur d’Allure (min/km ↔ km/h)
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
-          <span style={{ fontSize: 13 }}>
-            Allure : <strong>{Math.floor(paceMinPerKm)}'{String(Math.round((paceMinPerKm % 1) * 60)).padStart(2, '0')}" / km</strong>
-          </span>
-          <input
-            type="range"
-            min="4.0"
-            max="9.0"
-            step="0.1"
-            value={paceMinPerKm}
-            onChange={(e) => setPaceMinPerKm( parseFloat(e.target.value) )}
-            style={{ flex: 1 }}
-          />
-        </div>
-        <div className="meta-grid">
-          <div className="meta-box">
-            <span className="meta-label">Vitesse équivalente</span>
-            <span className="meta-val" style={{ color: 'var(--accent-light)' }}>
-              {speedKmhFromPace} km/h
-            </span>
-          </div>
-          <div className="meta-box">
-            <span className="meta-label">Temps 5 km</span>
-            <span className="meta-val">{time5kMin} min</span>
-          </div>
-          <div className="meta-box">
-            <span className="meta-label">Temps 10 km</span>
-            <span className="meta-val">{time10kMin} min</span>
-          </div>
-        </div>
-      </div>
-    </>
+  const renderRunningTab = () => (
+    <RunningView
+      isSplitView={isSplitView}
+      activeRun={activeRun}
+      setActiveRun={setActiveRun}
+      selectedRunProgramId={selectedRunProgramId}
+      setSelectedRunProgramId={setSelectedRunProgramId}
+      startRunningSession={startRunningSession}
+      startFreeRun={startFreeRun}
+      skipRunInterval={skipRunInterval}
+      finishRunningSession={finishRunningSession}
+      voiceCoachEnabled={voiceCoachEnabled}
+      setVoiceCoachEnabled={setVoiceCoachEnabled}
+      gpsActive={gpsActive}
+      setGpsActive={setGpsActive}
+      paceMinPerKm={paceMinPerKm}
+      setPaceMinPerKm={setPaceMinPerKm}
+      exerciseMap={exerciseMap}
+      onSelectExercise={handleSelectExercise}
+      runHistory={runHistory}
+    />
   );
 
   // ══════════════════════════════════════════════════════════════════
