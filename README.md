@@ -46,32 +46,38 @@ Elle est conçue pour fonctionner :
 
 ---
 
-## 🚀 Installation et Lancement
+## 🚀 Installation sur Téléphone (Fichier `.APK` direct) ou sur PC
 
-### Prérequis
+### 📱 Option 1 — Installer directement le fichier `KEG-Sporting.apk` sur Android (Recommandé)
+Aucune installation sur PC n'est requise ! L'APK embarque les **1 324 exercices en français, toutes les photos et tous les GIFs** pour fonctionner 100 % hors-ligne :
+
+1. Depuis votre téléphone Android (**Samsung Galaxy Z Fold 5** ou **n'importe quel smartphone Android**), cliquez sur le lien de téléchargement direct :
+   👉 **[Télécharger `KEG-Sporting.apk` (Dernière Release GitHub)](https://github.com/KarimEG45/keg-sporting/releases/latest/download/KEG-Sporting.apk)** *(ou rendez-vous dans l'onglet **[Releases](https://github.com/KarimEG45/keg-sporting/releases)** du dépôt).*
+2. Ouvrez le fichier **`KEG-Sporting.apk`** téléchargé sur votre téléphone.
+3. Si Android le demande, autorisez *« Installer des applications inconnues »*, puis appuyez sur **Installer**.
+
+---
+
+### 💻 Option 2 — Lancer le projet sur PC (Mode Développement)
+
+#### Prérequis
 - [Node.js](https://nodejs.org/) (version 18 ou supérieure)
 - Git
 
-### 1. Cloner le dépôt et installer les dépendances
+#### 1. Cloner le dépôt et installer les dépendances
 ```bash
 git clone https://github.com/KarimEG45/keg-sporting.git
 cd keg-sporting
 npm install
 ```
 
-### 2. Lancer l'application sur PC
+#### 2. Lancer l'application sur PC
 ```bash
 npm run dev
 ```
 *(Sous Windows, vous pouvez également double-cliquer directement sur le fichier `lancer-app.bat`)*
 
 Ouvrez ensuite votre navigateur sur : **http://localhost:5173/**
-
-### 3. Installer l'application sur votre Smartphone (Classique ou Galaxy Z Fold 5)
-1. Connectez votre téléphone au **même réseau Wi-Fi** que votre PC.
-2. Ouvrez **Chrome**, **Safari** ou **Samsung Internet** à l'adresse réseau affichée dans le terminal (ex: `http://192.168.1.x:5173`).
-3. Ouvrez le menu du navigateur (**⋮** sur Android ou **Partager** sur iOS) puis appuyez sur **« Ajouter à l'écran d'accueil » / « Installer l'application »**.
-4. L'application **KEG-Sporting** s'installe sur votre téléphone en plein écran et met en cache les données et animations pour fonctionner même hors-ligne à la salle de sport.
 
 ---
 
