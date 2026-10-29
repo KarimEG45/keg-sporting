@@ -1,0 +1,19 @@
+{
+  "name": "KEG-Sporting — Musculation & Course à Pied",
+  "short_name": "KEG-Sporting",
+  "description": "Application de musculation (1 324 exercices en français avec GIFs animés) et coach de course à pied pour débutants. Compatible avec tous les smartphones et optimisée pour Samsung Galaxy Z Fold 5.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#09090b",
+  "theme_color": "#09090b",
+  "orientation": "any",
+  "lang": "fr-FR",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
