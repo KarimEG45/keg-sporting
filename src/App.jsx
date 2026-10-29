@@ -77,11 +77,38 @@ const BODY_PART_ORDER = [
   { key: 'neck', label: 'Cou & Trapèzes', icon: '🛡️' }
 ];
 
+const VALID_TABS = ['home', 'workouts', 'running', 'exercises', 'stats'];
+const VALID_MODES = ['auto', 'phone', 'folded', 'unfolded'];
+
+function safeParseArray(key) {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(key) || '[]');
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function safeParseObject(key) {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(key) || 'null');
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) && Array.isArray(parsed.items)
+      ? parsed
+      : null;
+  } catch {
+    return null;
+  }
+}
+
 export default function App() {
   const initialParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+  const rawTab = initialParams?.get('tab');
+  const rawMode = initialParams?.get('mode');
   // ── Navigation Principale (Bottom Bar 5 onglets) ──
   // 'home' | 'workouts' | 'running' | 'exercises' | 'stats'
-  const [activeTab, setActiveTab] = useState(initialParams?.get('tab') || 'home');
+  const [activeTab, setActiveTab] = useState(
+    VALID_TABS.includes(rawTab) ? rawTab : 'home'
+  );
 
   // ── Base de données des 1 324 exercices ──
   const [exercises, setExercises] = useState([]);
@@ -89,7 +116,9 @@ export default function App() {
 
   // ── Détection Universelle d'Appareil (Smartphone classique vs Z Fold déplié) ──
   // 'auto' | 'phone' | 'folded' | 'unfolded'
-  const [devicePreview, setDevicePreview] = useState(initialParams?.get('mode') || 'auto');
+  const [devicePreview, setDevicePreview] = useState(
+    VALID_MODES.includes(rawMode) ? rawMode : 'auto'
+  );
   const [windowWidth, setWindowWidth] = useState(
     typeof window !== 'undefined' ? window.innerWidth : 412
   );
@@ -115,46 +144,13 @@ export default function App() {
   const [pauseDetailGif, setPauseDetailGif] = useState(false);
 
   // ── Données Utilisateur persistées (Favoris, Programmes Perso, Historique Muscu & Course) ──
-  const [favorites, setFavorites] = useState(() => {
-    try {
-      return JSON.parse(localStorage.getItem('gyma_favorites') || '[]');
-    } catch {
-      return [];
-    }
-  });
-
-  const [customRoutines, setCustomRoutines] = useState(() => {
-    try {
-      return JSON.parse(localStorage.getItem('gyma_custom_routines') || '[]');
-    } catch {
-      return [];
-    }
-  });
-
-  const [workoutHistory, setWorkoutHistory] = useState(() => {
-    try {
-      return JSON.parse(localStorage.getItem('gyma_workout_history') || '[]');
-    } catch {
-      return [];
-    }
-  });
-
-  const [runHistory, setRunHistory] = useState(() => {
-    try {
-      return JSON.parse(localStorage.getItem('gyma_run_history') || '[]');
-    } catch {
-      return [];
-    }
-  });
+  const [favorites, setFavorites] = useState(() => safeParseArray('gyma_favorites'));
+  const [customRoutines, setCustomRoutines] = useState(() => safeParseArray('gyma_custom_routines'));
+  const [workoutHistory, setWorkoutHistory] = useState(() => safeParseArray('gyma_workout_history'));
+  const [runHistory, setRunHistory] = useState(() => safeParseArray('gyma_run_history'));
 
   // ── Séance de Musculation en direct (Active Workout) ──
-  const [activeWorkout, setActiveWorkout] = useState(() => {
-    try {
-      return JSON.parse(localStorage.getItem('gyma_active_workout') || 'null');
-    } catch {
-      return null;
-    }
-  });
+  const [activeWorkout, setActiveWorkout] = useState(() => safeParseObject('gyma_active_workout'));
   const [workoutElapsedSec, setWorkoutElapsedSec] = useState(0);
   const [restTimerSec, setRestTimerSec] = useState(0);
   const [restTimerTotal, setRestTimerTotal] = useState(90);
@@ -347,7 +343,9 @@ export default function App() {
         }
         lastGpsPosRef.current = { lat: latitude, lon: longitude };
       },
-      () => {},
+      () => {
+        setGpsActive(false);
+      },
       { enableHighAccuracy: true, maximumAge: 3000, timeout: 10000 }
     );
     return () => navigator.geolocation.clearWatch(watchId);
@@ -445,12 +443,17 @@ export default function App() {
   };
 
   const updateSetField = (itemIdx, setIdx, field, value) => {
+    const rawNum = Number(value) || 0;
+    const clampedVal =
+      field === 'weight'
+        ? Math.min(1000, Math.max(0, rawNum))
+        : Math.min(500, Math.max(0, Math.round(rawNum)));
     setActiveWorkout((prev) => {
       if (!prev) return prev;
       const items = prev.items.map((it, i) => {
         if (i !== itemIdx) return it;
         const sets = it.sets.map((s, si) =>
-          si === setIdx ? { ...s, [field]: Number(value) || 0 } : s
+          si === setIdx ? { ...s, [field]: clampedVal } : s
         );
         return { ...it, sets };
       });
@@ -1428,9 +1431,10 @@ export default function App() {
             <input
               type="text"
               className="search-input"
+              maxLength={80}
               placeholder="Nom de la séance (ex: Pecs & Biceps du Lundi)"
               value={newRoutineName}
-              onChange={(e) => setNewRoutineName(e.target.value)}
+              onChange={(e) => setNewRoutineName(e.target.value.slice(0, 80))}
             />
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -1812,21 +1816,22 @@ export default function App() {
   // ONGLET 5 : SUIVI, HISTORIQUE, RECORDS & OUTILS SALLE
   // ══════════════════════════════════════════════════════════════════
   const renderStatsTab = () => {
-    const est1RM = Math.round(calcWeight * (1 + calcReps / 30));
-    // Calculateur de disques par côté (barre olympique 20 kg)
+    const safeWeight = Math.min(1000, Math.max(0, Number(calcWeight) || 0));
+    const safeReps = Math.min(500, Math.max(1, Number(calcReps) || 1));
+    const est1RM = Math.round(safeWeight * (1 + safeReps / 30));
+    // Calculateur de disques par côté (barre olympique 20 kg) — borné à [0, 1000] kg
     const getPlatesPerSide = (totalKg) => {
-      let rem = Math.max(0, (totalKg - 20) / 2);
+      let rem = Math.max(0, (Math.min(1000, Math.max(0, Number(totalKg) || 0)) - 20) / 2);
       const plates = [25, 20, 15, 10, 5, 2.5, 1.25];
       const res = [];
       for (const p of plates) {
-        while (rem >= p - 0.01) {
-          res.push(p);
-          rem -= p;
-        }
+        const count = Math.floor((rem + 0.01) / p);
+        for (let i = 0; i < count; i++) res.push(p);
+        rem -= count * p;
       }
       return res;
     };
-    const platesSide = getPlatesPerSide(calcWeight);
+    const platesSide = getPlatesPerSide(safeWeight);
 
     const leftStats = (
       <div className="page-pad">
@@ -1947,20 +1952,28 @@ export default function App() {
             <span className="meta-label">Charge (kg)</span>
             <input
               type="number"
+              min="0"
+              max="1000"
               className="set-input"
               style={{ width: '100%', marginTop: 4 }}
               value={calcWeight}
-              onChange={(e) => setCalcWeight(Number(e.target.value) || 0)}
+              onChange={(e) =>
+                setCalcWeight(Math.min(1000, Math.max(0, Number(e.target.value) || 0)))
+              }
             />
           </div>
           <div className="meta-box">
             <span className="meta-label">Répétitions</span>
             <input
               type="number"
+              min="1"
+              max="500"
               className="set-input"
               style={{ width: '100%', marginTop: 4 }}
               value={calcReps}
-              onChange={(e) => setCalcReps(Number(e.target.value) || 1)}
+              onChange={(e) =>
+                setCalcReps(Math.min(500, Math.max(1, Number(e.target.value) || 1)))
+              }
             />
           </div>
           <div className="meta-box">

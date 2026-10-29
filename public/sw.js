@@ -27,6 +27,10 @@ self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
 
   const url = new URL(event.request.url);
+  if (!url.protocol.startsWith('http') || url.origin !== self.location.origin) {
+    return;
+  }
+
   // Cache-first for images, GIFs, and exercise JSON dataset (perfect for gym offline usage)
   if (
     url.pathname.startsWith('/images/') ||
@@ -39,12 +43,12 @@ self.addEventListener('fetch', (event) => {
         if (cached) return cached;
         try {
           const response = await fetch(event.request);
-          if (response && response.status === 200) {
+          if (response && response.status === 200 && response.type === 'basic') {
             cache.put(event.request, response.clone());
           }
           return response;
         } catch {
-          return cached || Response.error();
+          return cached || new Response('', { status: 504, statusText: 'Offline' });
         }
       })
     );
@@ -55,12 +59,12 @@ self.addEventListener('fetch', (event) => {
   event.respondWith(
     fetch(event.request)
       .then((response) => {
-        if (response && response.status === 200 && url.origin === self.location.origin) {
+        if (response && response.status === 200 && response.type === 'basic') {
           const copy = response.clone();
           caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
         }
         return response;
       })
-      .catch(() => caches.match(event.request))
+      .catch(async () => (await caches.match(event.request)) || new Response('Offline', { status: 503 }))
   );
 });

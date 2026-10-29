@@ -82,10 +82,19 @@ export function playMetronomeTick() {
 
 export function speakCoachFr(text, enabled = true) {
   playRestFinishedBeep();
-  if (!enabled || typeof window === 'undefined' || !('speechSynthesis' in window)) return;
+  if (
+    !enabled ||
+    typeof text !== 'string' ||
+    typeof window === 'undefined' ||
+    !('speechSynthesis' in window)
+  ) {
+    return;
+  }
   try {
+    const safeText = text.trim().slice(0, 250);
+    if (!safeText) return;
     window.speechSynthesis.cancel();
-    const utter = new SpeechSynthesisUtterance(text);
+    const utter = new SpeechSynthesisUtterance(safeText);
     utter.lang = 'fr-FR';
     utter.rate = 1.02;
     window.speechSynthesis.speak(utter);

@@ -1,5 +1,6 @@
 node_modules/
 dist/
 exercises-dataset/
+.agents/
 .DS_Store
 *.log

@@ -1,5 +1,10 @@
 {
   "appId": "com.kegsporting.app",
   "appName": "KEG-Sporting",
-  "webDir": "dist"
+  "webDir": "dist",
+  "server": {
+    "androidScheme": "https",
+    "cleartext": false,
+    "allowNavigation": []
+  }
 }
